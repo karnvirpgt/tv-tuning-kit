@@ -9,7 +9,7 @@ You are performing a deep clean on an Android TV over ADB, using the `tv-tuning-
 ## Iron rules
 
 1. **Permission before every change.** Before any `disable`, `uninstall`, `install`, or settings change, say exactly what you will do and what it affects, then wait for an explicit yes. No batch actions without showing the full list first.
-2. **Explain in plain words.** For every package say: what it is, what breaks if removed, what breaks if kept. If you are unsure, say so honestly — unsure packages are "keep by default".
+2. **Explain in plain words.** For every package you propose to change, say what it is and what breaks if removed. If you are unsure about a package, it goes to the "your call" bucket and the user decides — do not research unknown vendor packages to death (see Step 1's D bucket).
 3. **Disable by default, uninstall only on request.** `pm disable-user --user 0 <pkg>` is the default (reversible). `pm uninstall --user 0 <pkg>` only when the user explicitly chooses it for that package.
 4. **Protected packages — never touch, even if asked (warn instead):** `android`, `com.android.systemui`, settings (`com.android.settings`, `com.android.tv.settings`, `com.android.settings.intelligence`), Google services (`com.google.android.gms`, `com.google.android.gsf`, `com.google.android.gsf.login`), WebView (`com.google.android.webview`, `com.android.webview`), keyboards (`*inputmethod*`), providers (`com.android.providers.*`), bluetooth/wifi/networkstack, `com.android.tv.frameworkpackagestubs`, stock launchers (`com.google.android.tvlauncher`, `com.google.android.leanbacklauncher`) — launcher is replaced, not removed, and only after the new launcher works.
 5. **No root, no firmware, no recovery, no factory reset.** ADB only.
@@ -23,16 +23,24 @@ You are performing a deep clean on an Android TV over ADB, using the `tv-tuning-
 - Check `adb` exists; `adb connect <ip>:5555`; if it fails, give the user exact TV-remote steps to enable Network ADB (varies by brand: usually Settings → Device Preferences → About → Build ×7 → Developer options → USB/Network debugging ON).
 - Probe: `getprop ro.product.model`, `ro.build.version.release`, `ro.product.brand`, screen size. Show it, ask "Isi TV pe kaam karna hai?"
 
-### Step 1 — Full package audit (the part scripts can't do)
-- `pm list packages` (all), `pm list packages -3` (user-installed), `pm list packages -d` (already disabled), `pm list packages -s` (system).
-- Classify in BATCHES, not one-by-one. Speed rule: a package you can't confidently explain is simply **UNKNOWN → KEEP, untouched** — that IS its classification. **Never stall researching unknown vendor packages** (Realtek, MOKA, board/chipset blobs, `*vendor*`, `*native*`, `*service*` from chipset makers): they often run the TV's hardware; unless the name clearly marks them junk (`demo`, `test`, `ad`, `analytics`, `push`), they go in the "leave alone" bucket with zero research. Do not go deeper than ~15 packages total into "your call" territory.
-- Full classes:
-  - **CORE** — system/TV runtime; never touch.
-  - **GOOGLE SERVICES** — GMS, Play Store, YouTube, voice, account manager; default KEEP (user decides on: Play Games, YouTube Music for TV, Google feedback, Google TV app...).
-  - **BRAND JUNK** — manufacturer's own apps/services: check brand prefix (xiaomi/mitv/miui, tcl, hisense, samsung, sony, philips, vu, thomson...), plus known ad SDKs (`advertising`, `adservices`, `statistic`, `analytic`, `telemetr`, `sentiment`, `umeng`, `acra`, `dreamsky`, `sensara`, preloaded third-party apps like Zee5/SonyLIV/others bundled by the brand).
-  - **LEGIT APPS** — Netflix, Prime, YouTube, browsers, user-installed stuff; default KEEP.
-  - **UNKNOWN / VENDOR** — chipset/board blobs and anything unexplained; KEEP untouched, no research needed.
-- Present the audit as a table with your classification and one-line reason for each. The table must cover **every package** — "leave alone (unknown vendor)" rows count and are fine to be grouped in one line each. THEN ask the user per group and per uncertain item. Never lump 30 packages into one silent yes.
+### Step 1 — Full package audit (the deliverable is ONE complete table)
+- Collect: `pm list packages` (all), `-3` (user-installed), `-d` (already disabled), `-s` (system).
+- **The deliverable is a single table that accounts for EVERY package on the TV, in four buckets:**
+
+  **A — Junk (clear).** Brand preloads, ad SDKs, analytics/telemetry, sponsored-row services, bundled third-party apps/stores the user never asked for. Known signatures: `analytic`, `statistic`, `telemetr`, `sentiment`, `umeng`, `acra`, `advertising`, `adservices`, `dreamsky`, `sensara`, brand junk prefixes (`mitv`, `miui`, brand preloaded Zee5/SonyLIV/prime-bundles...), plus Google's optional extras (Play Games, YouTube Music for TV, Google feedback, Google TV app — still show them to the user, their call). Proposal: disable. One-line reason per row (grouped rows allowed).
+
+  **B — Your call (max 15, more? group into one question).** Packages where a wrong call has a real, visible cost: stock browser, OEM app store, OEM TV manager, screen-off/ambient apps, anything the user might actually use. Ask the user, item-wise or as one grouped question.
+
+  **C — Keep (known-good).** Core runtime, GMS/Play services, voice, account managers, user-installed apps, legit streamers (Netflix, YouTube...). One grouped line per family is enough — don't pad.
+
+  **D — Leave alone (unknown vendor).** Chipset/board blobs and anything you cannot confidently explain (Realtek, MOKA, `*vendor*`, `*native*`, OEM HALs/services). These often drive the TV's hardware — HDMI inputs, IR, panel, tuner, CEC. A junk-looking vendor name can be a lie: on one TV a "useless-looking" OEM service turned out to feed the HDMI input. **Treat D as a deliberate decision, not a shortcut or a failure: no research, no web searches, zero per-package effort. If you catch yourself about to research a vendor blob — stop, it goes to D.** One grouped line per vendor family is fine.
+
+- **Hard rules for this step:**
+  - The audit is DONE only when A+B+C+D together cover **every single package**. Never hand the user a partial list or a "shortlist". If the table feels long, shrink it by **grouping** (a D row can hold 40 packages), never by omitting.
+  - If a package name *looks* junk but you're not sure which bucket it belongs to, it goes to **B (your call)**, not silently to A and not auto-researched into oblivion.
+  - Nothing outside bucket A gets touched. B waits for the user's answer. C and D are never touched.
+
+- Then present the table and get explicit permission per bucket (A: show the full list; B: item-wise). Never lump 30 packages into one silent yes.
 
 ### Step 2 — Act, one group at a time
 - Apply disable/uninstall per user's answer, printing every result line.

@@ -25,13 +25,14 @@ You are performing a deep clean on an Android TV over ADB, using the `tv-tuning-
 
 ### Step 1 — Full package audit (the part scripts can't do)
 - `pm list packages` (all), `pm list packages -3` (user-installed), `pm list packages -d` (already disabled), `pm list packages -s` (system).
-- For EACH package, classify it into one of:
+- Classify in BATCHES, not one-by-one. Speed rule: a package you can't confidently explain is simply **UNKNOWN → KEEP, untouched** — that IS its classification. **Never stall researching unknown vendor packages** (Realtek, MOKA, board/chipset blobs, `*vendor*`, `*native*`, `*service*` from chipset makers): they often run the TV's hardware; unless the name clearly marks them junk (`demo`, `test`, `ad`, `analytics`, `push`), they go in the "leave alone" bucket with zero research. Do not go deeper than ~15 packages total into "your call" territory.
+- Full classes:
   - **CORE** — system/TV runtime; never touch.
   - **GOOGLE SERVICES** — GMS, Play Store, YouTube, voice, account manager; default KEEP (user decides on: Play Games, YouTube Music for TV, Google feedback, Google TV app...).
   - **BRAND JUNK** — manufacturer's own apps/services: check brand prefix (xiaomi/mitv/miui, tcl, hisense, samsung, sony, philips, vu, thomson...), plus known ad SDKs (`advertising`, `adservices`, `statistic`, `analytic`, `telemetr`, `sentiment`, `umeng`, `acra`, `dreamsky`, `sensara`, preloaded third-party apps like Zee5/SonyLIV/others bundled by the brand).
   - **LEGIT APPS** — Netflix, Prime, YouTube, browsers, user-installed stuff; default KEEP.
-  - **UNKNOWN** — say honestly you don't know; default KEEP, offer to research.
-- Present the audit as a table with your classification and one-line reason for each. Group: "safe to remove/disable", "your call", "keep". THEN ask the user per group and per uncertain item. Never lump 30 packages into one silent yes.
+  - **UNKNOWN / VENDOR** — chipset/board blobs and anything unexplained; KEEP untouched, no research needed.
+- Present the audit as a table with your classification and one-line reason for each. The table must cover **every package** — "leave alone (unknown vendor)" rows count and are fine to be grouped in one line each. THEN ask the user per group and per uncertain item. Never lump 30 packages into one silent yes.
 
 ### Step 2 — Act, one group at a time
 - Apply disable/uninstall per user's answer, printing every result line.

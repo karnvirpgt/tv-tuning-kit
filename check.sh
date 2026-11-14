@@ -19,9 +19,9 @@ python3 - "$REC" <<'EOF'
 import json,subprocess,sys
 d=json.load(open(sys.argv[1]))
 out=subprocess.run(["adb","-s",f"{d['ip']}:5555","shell","pm","list","packages","-d"],capture_output=True,text=True).stdout
-enabled_now={l.replace("package:","").strip() for l in out.splitlines() if l.strip()}
+still_disabled={l.replace("package:","").strip() for l in out.splitlines() if l.strip()}
 for p in d.get("disabled",[]):
-    print(f"  still disabled: {p}" if p not in enabled_now else f"  enabled again (system ne undo kiya?): {p}")
+    print(f"  still disabled: {p}" if p in still_disabled else f"  enabled again (firmware ne undo kiya?): {p}")
 if not d.get("disabled"): print("  (kuch nahi)")
 EOF
 

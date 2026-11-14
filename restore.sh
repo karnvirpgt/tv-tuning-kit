@@ -21,17 +21,27 @@ python3 - "$REC" "$IP" "$YN" <<'EOF'
 import json,subprocess,sys
 rec,ip,yn=sys.argv[1],sys.argv[2],sys.argv[3]
 d=json.load(open(rec))
-def adb(*a): subprocess.run(["adb","-s",f"{ip}:5555","shell",*a],capture_output=True)
+def adb(*a): return subprocess.run(["adb","-s",f"{ip}:5555","shell",*a],capture_output=True)
+fail=0
 for p in d.get("disabled",[]):
-    adb("pm","enable",p)
-    r=subprocess.run(["adb","-s",f"{ip}:5555","shell","pm","path",p],capture_output=True,text=True).stdout.strip()
-    print(f"  enabled: {p}" if r else f"  FAIL/absent: {p}")
+    r=adb("pm","enable","--user","0",p)
+    r2=subprocess.run(["adb","-s",f"{ip}:5555","shell","pm","path",p],capture_output=True,text=True).stdout.strip()
+    if r2:
+        print(f"  enabled: {p}")
+    else:
+        fail+=1; print(f"  FAIL/absent: {p}")
 for p in d.get("uninstalled",[]):
     adb("pm","install-existing",p)
     print(f"  reinstalled from system copy: {p}")
 if not d.get("disabled") and not d.get("uninstalled"): print("  (record khala tha)")
+sys.exit(1 if fail else 0)
 EOF
+RESTORE_RC=$?
 
-say "Ho gaya. Agar sab wapas aa gaya hai, ye record ab hata sakta hoon."
-agree "Record file delete karun ($REC)?" && rm -f "$REC" && echo "  deleted."
+if [ $RESTORE_RC -eq 0 ]; then
+  say "Sab wapas aa gaya. Ab record hata sakta hoon."
+  agree "Record file delete karun ($REC)?" && rm -f "$REC" && echo "  deleted."
+else
+  warn "Kuch packages wapas NAHI aaye (TV off tha ya adb fail). Record delete NAHI kiya — TV ON karke dobara chalao."
+fi
 echo "  Note: ye script kit ke changes undo karta hai. Launcher (CleanYourTV) stock pe wapas lane ke liye us project ka restore tool use karo."

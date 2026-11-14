@@ -15,13 +15,15 @@ ask()  { printf '\033[1m=> %s [y/N] \033[0m' "$1"; read -r a; [ "${a:-}" = y ] |
 record() { # $1 kind (disabled/uninstalled), $2 package
   python3 - "$REC" "$1" "$2" <<'EOF'
 import json,sys
-d=json.load(open(sys.argv[1])); d[sys.argv[2]].append(sys.argv[3])
+d=json.load(open(sys.argv[1]))
+d.setdefault(sys.argv[2],[]).append(sys.argv[3])
 json.dump(d,open(sys.argv[1],"w"),indent=1)
 EOF
 }
 
 IP="${1:-}"
 [ -z "$IP" ] && { printf 'TV ka IP address: '; read -r IP; }
+IP="${IP%%:*}"   # user ne IP:5555 likha to port hata do — hum khud :5555 lagate hain
 command -v adb >/dev/null || { warn "adb nahi mila. Mac: 'brew install android-platform-tools' | Linux: 'apt install adb'. Phir dobara chalao."; exit 1; }
 
 say "Step 1: TV se connect"
@@ -32,8 +34,11 @@ echo "  TV: $MODEL | Android $(adb -s "$IP:5555" shell getprop ro.build.version.
 ask "Isi TV pe kaam karna hai?" || exit 0
 
 REC="$REC_DIR/restore-$IP.json"
-[ -f "$REC" ] && warn "Is TV ka purana record hai ($REC). restore.sh se purane actions bhi undo honge."
-echo '{"ip": "'"$IP"'", "disabled": [], "uninstalled": []}' > "$REC"
+if [ -f "$REC" ]; then
+  warn "Is TV ka purana record hai ($REC) — naye actions USI ME add honge, koi wipe nahi hoga. restore.sh purane+naye dono undo karega."
+else
+  echo '{"ip": "'"$IP"'", "disabled": [], "uninstalled": []}' > "$REC"
+fi
 
 # ---------- Step 2: bloat discovery ----------
 say "Step 2: Bloat discovery (abhi kuch nahi badla)"
@@ -47,7 +52,8 @@ is_protected() {
     com.google.android.webview|com.android.webview|\
     com.android.inputmethod*|com.google.android.inputmethod*|\
     com.android.providers.*|com.android.bluetooth|com.android.wifi*|com.android.networkstack*|\
-    com.android.tv.frameworkpackagestubs|com.google.android.tvlauncher|com.google.android.leanbacklauncher) return 0 ;;
+    com.android.tv.frameworkpackagestubs|com.google.android.tvlauncher|com.google.android.leanbacklauncher|\
+    com.mitv.tvhome*|*tvhome*|com.android.settings.intelligence) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -70,7 +76,7 @@ else
   case "$mode" in
     a|A|e|E)
       for p in $CANDIDATES; do
-        if [ "${mode,,}" = e ]; then ask "Disable: $p?" || continue; fi
+        if [ "$mode" = e ] || [ "$mode" = E ]; then ask "Disable: $p?" || continue; fi
         if adb -s "$IP:5555" shell pm disable-user --user 0 "$p" >/dev/null 2>&1; then
           echo "     disabled: $p"; record disabled "$p"
         else
@@ -86,15 +92,18 @@ say "Step 3: Optional apps (har app alag se puch ke install hoga)"
 
 echo "  Live TV fork — free Indian TV, sirf Hindi/Punjabi/English, failover + auto-hide (hamari build, open fork)."
 ask "Install karna hai?" && {
-  curl -sL https://github.com/karnvirpgt/live-tv/releases/latest/download/app-release.apk -o /tmp/tvk_livetv.apk \
-    && adb -s "$IP:5555" install /tmp/tvk_livetv.apk 2>&1 | tail -1 && rm -f /tmp/tvk_livetv.apk
+  curl -fsSL https://github.com/karnvirpgt/live-tv/releases/latest/download/app-release.apk -o /tmp/tvk_livetv.apk \
+    && adb -s "$IP:5555" install /tmp/tvk_livetv.apk 2>&1 | tail -1
+  rm -f /tmp/tvk_livetv.apk
 }
 
 echo "  TV Bro — TV-remote ke liye bana free browser (open source, github.com/truefedex/tv-bro)."
 ask "Install karna hai?" && {
-  URL=$(curl -sL https://github.com/truefedex/tv-bro/releases/latest | grep -oE 'href="[^"]*\.apk' | head -1 | sed 's|href="|https://github.com|')
+  # v2.1.6 pinned: Android 8/9 pe verified; v3.x unverified on Android 9
+  URL=$(curl -fsSL "https://github.com/truefedex/tv-bro/releases/expanded_assets/v2.1.6" | grep -oE 'href="[^"]*\.apk' | head -1 | sed 's|href="|https://github.com|')
   if [ -n "$URL" ]; then
-    curl -sL "$URL" -o /tmp/tvk_tvbro.apk && adb -s "$IP:5555" install /tmp/tvk_tvbro.apk 2>&1 | tail -1 && rm -f /tmp/tvk_tvbro.apk
+    curl -fsSL "$URL" -o /tmp/tvk_tvbro.apk && adb -s "$IP:5555" install /tmp/tvk_tvbro.apk 2>&1 | tail -1
+    rm -f /tmp/tvk_tvbro.apk
   else
     warn "link nahi mila — https://github.com/truefedex/tv-bro/releases se manually download karke 'adb install <file.apk>'"
   fi

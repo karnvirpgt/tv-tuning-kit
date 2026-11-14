@@ -14,6 +14,9 @@ Kya ye CleanYourTV se alag hai? CleanYourTV (github.com/Gathin23/cleanyourtv) la
 
 ## Quick start (5 min)
 
+> **AI assistant ke saath kar rahe ho?** (Claude Code, Codex, Gemini, Cursor, OpenCode...)
+> Repo clone karo aur assistant ko **`PROMPT.md` follow karne ko bolo** — wo proper deep clean karega (full package audit, har step pe permission). Scripts (neeche) quick clean ke liye hain.
+
 ```bash
 # 1. adb install karo (Mac: brew install android-platform-tools | Linux: apt install adb)
 

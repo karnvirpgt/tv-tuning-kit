@@ -42,6 +42,14 @@ You are performing a deep clean on an Android TV over ADB, using the `tv-tuning-
 
 - Then present the table and get explicit permission per bucket (A: show the full list; B: item-wise). Never lump 30 packages into one silent yes.
 
+### Talking to the user (they don't know the buckets — and shouldn't need to)
+- Never use bucket letters or ADB jargon with the user. Translate:
+  - A → "**Ye hataye ja sakte hain**" (har ek ki 1-line wajah ke saath)
+  - B → "**Ye tum batao** — lagta hai feature ho sakta hai, use karte ho?"
+  - C → "**Ye waise hi rakhe hain** (zaroori/app in use)"
+  - D → "**Ye rehne de rahe hain** (TV ke andar ke software, inme kuch nahi badla)"
+- **Completeness is YOUR job, not the user's.** Before presenting, self-check: add up the packages in your buckets — it must equal the total `pm list packages` count. If it doesn't, group more and finish the table yourself; never ask the user to audit your work.
+
 ### Step 2 — Act, one group at a time
 - Apply disable/uninstall per user's answer, printing every result line.
 - If a disable fails (some TVs refuse), report it and move on — never force.
